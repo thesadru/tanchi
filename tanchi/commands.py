@@ -8,14 +8,17 @@ __all__ = ["as_slash_command"]
 
 
 def as_slash_command(
-    name: str = None,
+    name: typing.Optional[str] = None,
     *,
     always_defer: bool = False,
     default_permission: bool = True,
     default_to_ephemeral: typing.Optional[bool] = None,
     is_global: bool = True,
     sort_options: bool = True,
-) -> typing.Callable[[typing.Callable[..., typing.Any]], tanjun.SlashCommand]:
+) -> typing.Callable[
+    [tanjun.abc.CommandCallbackSigT],
+    tanjun.SlashCommand[tanjun.abc.CommandCallbackSigT],
+]:
     """Build a SlashCommand by decorating a function."""
     return lambda func: parser.create_command(
         func,

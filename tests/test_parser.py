@@ -1,9 +1,9 @@
+import enum
 import inspect
 import typing
 from unittest import mock
 
 import hikari
-import enum
 import pytest
 import tanjun
 

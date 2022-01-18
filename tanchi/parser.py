@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import enum
 import inspect
 import re
-import enum
 import sys
 import types
 import typing
@@ -23,6 +23,7 @@ if typing.TYPE_CHECKING:
     from typing_extensions import TypeGuard
 
     T = typing.TypeVar("T")
+    S = typing.TypeVar("S", bound=typing.Type[typing.Any])
 
 UNDEFINED_DEFAULT = tanjun.commands._UNDEFINED_DEFAULT
 """Singleton for tanjun's undefined defaults."""
@@ -38,7 +39,7 @@ _type_mapping: typing.Mapping[type, hikari.OptionType] = {
 __all__ = ["parse_parameter", "parse_docstring", "create_command"]
 
 
-def issubclass_(obj: typing.Any, tp: typing.Type[T]) -> TypeGuard[typing.Type[T]]:
+def issubclass_(obj: typing.Any, tp: S) -> TypeGuard[S]:
     """More lenient issubclass"""
     return isinstance(obj, type) and issubclass(obj, tp)
 
@@ -52,6 +53,7 @@ def _strip_optional(tp: typing.Any) -> typing.Any:
     if len(args) == 1:
         return args[0]
 
+    # pyright doesn't understand this so we use cast
     return typing.Union[tuple(args)]  # type: ignore
 
 
@@ -87,7 +89,7 @@ def _try_channel_option(
 
 
 def parse_parameter(
-    command: tanjun.SlashCommand,
+    command: tanjun.SlashCommand[typing.Any],
     name: str,
     annotation: typing.Any,
     default: typing.Any = UNDEFINED_DEFAULT,
@@ -145,7 +147,7 @@ def parse_docstring(docstring: str) -> typing.Tuple[str, typing.Mapping[str, str
 
 
 def create_command(
-    function: typing.Callable[..., typing.Any],
+    function: tanjun.abc.CommandCallbackSigT,
     *,
     name: typing.Optional[str] = None,
     always_defer: bool = False,
@@ -153,7 +155,7 @@ def create_command(
     default_to_ephemeral: typing.Optional[bool] = None,
     is_global: bool = True,
     sort_options: bool = True,
-) -> tanjun.SlashCommand:
+) -> tanjun.SlashCommand[tanjun.abc.CommandCallbackSigT]:
     """Build a SlashCommand."""
     if not (doc := function.__doc__):
         raise TypeError("Function missing docstring, cannot create descriptions")

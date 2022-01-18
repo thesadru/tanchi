@@ -1,5 +1,9 @@
 hikari
 hikari-tanjun
 
+black
+isort
+
 pytest
-coverage
+mypy
+pyright

@@ -1,3 +1,7 @@
-.*/
+.venv
+.*_cache/
+
 .coverage
-__pycache__
+htmlcov/
+
+__pycache__/
