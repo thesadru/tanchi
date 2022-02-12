@@ -25,7 +25,7 @@ if typing.TYPE_CHECKING:
     T = typing.TypeVar("T")
     S = typing.TypeVar("S", bound=typing.Type[typing.Any])
 
-UNDEFINED_DEFAULT = tanjun.commands._UNDEFINED_DEFAULT
+UNDEFINED_DEFAULT = tanjun.commands.slash.UNDEFINED_DEFAULT
 """Singleton for tanjun's undefined defaults."""
 
 _type_mapping: typing.Mapping[type, hikari.OptionType] = {
@@ -53,7 +53,7 @@ def _strip_optional(tp: typing.Any) -> typing.Any:
     if len(args) == 1:
         return args[0]
 
-    # pyright doesn't understand this so we use cast
+    # pyright doesn't understand this so we have to ignore
     return typing.Union[tuple(args)]  # type: ignore
 
 
@@ -97,7 +97,7 @@ def parse_parameter(
 ) -> None:
     """Parse a parameter in a command signature."""
     annotation = _strip_optional(annotation)
-    description = description or "\u200b"
+    description = description or "-"
 
     if default is inspect.Parameter.empty:
         default = UNDEFINED_DEFAULT
@@ -185,7 +185,7 @@ def create_command(
         parse_parameter(
             command,
             name=parameter.name,
-            description=parameter_descriptions.get(parameter.name, "\u200b"),
+            description=parameter_descriptions.get(parameter.name, "-"),
             annotation=parameter.annotation,
             default=parameter.default,
         )
