@@ -10,7 +10,7 @@ import typing
 import hikari
 import tanjun
 
-from .types import UNDEFINED_DEFAULT, Range, signature
+from .types import UNDEFINED_DEFAULT, Mentionable, Range, signature
 
 if typing.TYPE_CHECKING:
     from typing_extensions import TypeGuard
@@ -32,13 +32,20 @@ else:
 
 _AnnotatedAlias = type(typing.Annotated[object, object])
 
-_type_mapping: typing.Mapping[type, hikari.OptionType] = {
+_builtin_type_mapping: typing.Mapping[type, hikari.OptionType] = {
     str: hikari.OptionType.STRING,
     int: hikari.OptionType.INTEGER,
     float: hikari.OptionType.FLOAT,
     bool: hikari.OptionType.BOOLEAN,
 }
-"""Generic discord types"""
+"""Generic discord types with builtin equivalents"""
+
+_hikari_type_mapping: typing.Mapping[typing.Any, int] = {
+    hikari.Role: hikari.OptionType.ROLE,
+    Mentionable: hikari.OptionType.MENTIONABLE,
+    hikari.Attachment: 11,
+}
+"""Generic discord types with hikari equivalents"""
 
 
 def issubclass_(obj: typing.Any, tp: S) -> TypeGuard[S]:
@@ -117,7 +124,7 @@ def parse_parameter(
         min_value, max_value = annotation.min_value, annotation.max_value
         annotation = annotation.underlying_type
 
-    if option_type := _type_mapping.get(annotation):
+    if option_type := _builtin_type_mapping.get(annotation):
         command._add_option(
             name,
             description,
@@ -128,6 +135,16 @@ def parse_parameter(
             max_value=max_value,
         )
         return
+
+    for tp, option_tp in _hikari_type_mapping.items():
+        if issubclass_(annotation, tp):
+            command._add_option(
+                name,
+                description,
+                option_tp,
+                default=default,
+            )
+            return
 
     if issubclass_(annotation, hikari.Member):
         command.add_member_option(name, description, default=default)

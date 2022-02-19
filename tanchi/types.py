@@ -4,9 +4,10 @@ import inspect
 import sys
 import typing
 
+import hikari
 import tanjun
 
-__all__ = ["Range"]
+__all__ = ["Range", "Mentionable"]
 
 T = typing.TypeVar("T")
 RangeValue = typing.Union[int, float]
@@ -86,3 +87,9 @@ class Range(metaclass=RangeMeta):
             self.underlying_type = float
         else:
             self.underlying_type = int
+
+
+if typing.TYPE_CHECKING:
+    Mentionable = typing.Union[hikari.Role, hikari.User]
+else:
+    Mentionable = type("Mentionable", (hikari.User, hikari.Role), {})

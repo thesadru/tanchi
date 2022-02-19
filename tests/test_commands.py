@@ -15,6 +15,7 @@ def test_as_slash_command():
         choices: typing.Literal[1, 2, 3],
         member: hikari.Member = None,
         channel: typing.Union[hikari.GuildTextChannel, hikari.GuildNewsChannel] = None,
+        role: hikari.Role = None,
         *,
         injection: hikari.RESTAware = tanjun.inject(type=hikari.RESTAware),
     ):
@@ -30,13 +31,15 @@ def test_as_slash_command():
             A member, runtime enforced
         channel : hikari.GuildTextChannel | hikari.GuildNewsChannel
             A text or news channel, very cool!
+        role : hikari.Role
+            A role
         """
 
     builder = command.build()
     assert builder.name == "command"
     assert builder.description == "Command description."
 
-    assert len(builder.options) == 4
+    assert len(builder.options) == 5
     assert builder.options[0] == hikari.CommandOption(
         type=hikari.OptionType.FLOAT,
         name="number",
@@ -66,6 +69,11 @@ def test_as_slash_command():
         name="channel",
         description="A text or news channel, very cool!",
         channel_types=[hikari.ChannelType.GUILD_TEXT, hikari.ChannelType.GUILD_NEWS],
+    )
+    assert builder.options[4] == hikari.CommandOption(
+        type=hikari.OptionType.ROLE,
+        name="role",
+        description="A role",
     )
 
 
