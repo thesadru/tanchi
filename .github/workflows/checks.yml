@@ -64,3 +64,13 @@ jobs:
         run: |
           python -m mypy tanchi
           python -m pyright tanchi
+
+  prettier:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Run prettier
+        run: |
+          npx prettier --check *.md
