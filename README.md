@@ -108,3 +108,14 @@ bar:
     Description for the option named "bar"
 """
 ```
+
+#### Google
+
+```py
+"""Command description on a single line
+
+Args:
+    foo (OptionType): Description for the option named "foo"
+    bar: Description for the option named "bar"
+"""
+```

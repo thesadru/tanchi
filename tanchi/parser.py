@@ -165,12 +165,20 @@ def parse_docstring(docstring: str) -> typing.Tuple[str, typing.Mapping[str, str
     docstring = inspect.cleandoc(docstring)
 
     main = docstring.splitlines()[0]
-
-    pattern = r"\n(\w+)\s*:.*\n\s+((?:.+|\n\s+)+)"
     parameters = {}
-    for match in re.finditer(pattern, docstring):
-        name, desc = match[1], match[2]
-        parameters[name] = " ".join(x.strip() for x in desc.splitlines())
+
+    if match := re.search(r"Parameters\s*\n\s*-+\s*((?:.|\n)*)(\n{2,})?", docstring):
+        # ReST
+        docstring = match[1]
+        for match in re.finditer(r"(\w+)\s*:.*\n\s+(.+)", docstring):
+            name, desc = match[1], match[2]
+            parameters[name] = " ".join(x.strip() for x in desc.splitlines())
+    elif match := re.search(r"Args\s*:\s*\n((?:.|\n)*)(\n{2,})?", docstring):
+        # Google
+        docstring = match[1]
+        for match in re.finditer(r"\s*(\w+)\s*(?:\(.+?\))?:\s+(.+)", docstring):
+            name, desc = match[1], match[2]
+            parameters[name] = " ".join(x.strip() for x in desc.splitlines())
 
     return main, parameters
 
