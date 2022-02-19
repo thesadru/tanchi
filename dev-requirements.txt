@@ -4,6 +4,7 @@ hikari-tanjun
 black
 isort
 
+typing_extensions
 pytest
 mypy
 pyright

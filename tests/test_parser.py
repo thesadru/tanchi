@@ -7,7 +7,7 @@ import hikari
 import pytest
 import tanjun
 
-from tanchi import parser
+from tanchi import parser, types
 
 
 def test_strip_optional():
@@ -80,8 +80,10 @@ def test_parse_parameter_with_int():
         "integer",
         "description",
         hikari.OptionType.INTEGER,
-        default=parser.UNDEFINED_DEFAULT,
+        default=types.UNDEFINED_DEFAULT,
         choices=None,
+        min_value=None,
+        max_value=None,
     )
 
 
@@ -98,8 +100,10 @@ def test_parse_parameter_with_string_choices():
         "string",
         "description",
         hikari.OptionType.STRING,
-        default=parser.UNDEFINED_DEFAULT,
+        default=mock.ANY,
         choices={"A": "A", "B": "B", "C": "C"},
+        min_value=mock.ANY,
+        max_value=mock.ANY,
     )
 
 
@@ -111,12 +115,11 @@ def test_parse_parameter_with_user():
         name="user",
         description="description",
         annotation=hikari.User,
-        default=None,
     )
     command.add_user_option.assert_called_once_with(
         "user",
         "description",
-        default=None,
+        default=mock.ANY,
     )
 
     parser.parse_parameter(
@@ -124,12 +127,11 @@ def test_parse_parameter_with_user():
         name="member",
         description="description",
         annotation=hikari.InteractionMember,
-        default=None,
     )
     command.add_member_option.assert_called_once_with(
         "member",
         "description",
-        default=None,
+        default=mock.ANY,
     )
 
 
@@ -140,13 +142,49 @@ def test_parse_parameter_with_channel():
         name="channel",
         description="description",
         annotation=typing.Union[hikari.GuildVoiceChannel, hikari.GuildStageChannel],
-        default=None,
     )
     command.add_channel_option.assert_called_once_with(
         "channel",
         "description",
-        default=None,
+        default=mock.ANY,
         types=[hikari.GuildVoiceChannel, hikari.GuildStageChannel],
+    )
+
+
+def test_parse_parameter_with_range():
+    command = mock.Mock(tanjun.SlashCommand)
+
+    parser.parse_parameter(
+        command,
+        name="range",
+        description="int range",
+        annotation=types.Range(1, 2),
+    )
+    command._add_option.assert_called_once_with(
+        "range",
+        "int range",
+        hikari.OptionType.INTEGER,
+        default=mock.ANY,
+        choices=None,
+        min_value=1,
+        max_value=2,
+    )
+
+    command = mock.Mock(tanjun.SlashCommand)
+    parser.parse_parameter(
+        command,
+        name="range",
+        description="float range",
+        annotation=types.Range(0, 1.0),
+    )
+    command._add_option.assert_called_once_with(
+        "range",
+        "float range",
+        hikari.OptionType.FLOAT,
+        default=mock.ANY,
+        choices=None,
+        min_value=0,
+        max_value=1.0,
     )
 
 

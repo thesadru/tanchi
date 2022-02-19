@@ -9,7 +9,18 @@ import typing
 
 import hikari
 import tanjun
-from hikari.internal import reflect as hikari_reflect
+
+from .types import UNDEFINED_DEFAULT, Range, signature
+
+if typing.TYPE_CHECKING:
+    from typing_extensions import TypeGuard
+
+    T = typing.TypeVar("T")
+    S = typing.TypeVar("S", bound=typing.Type[typing.Any])
+
+
+__all__ = ["parse_parameter", "parse_docstring", "create_command"]
+
 
 if sys.version_info >= (3, 10):
     _UnionTypes = {typing.Union, types.UnionType}
@@ -19,14 +30,7 @@ else:
     _UnionTypes = {typing.Union}
     _NoneTypes = {None, type(None)}
 
-if typing.TYPE_CHECKING:
-    from typing_extensions import TypeGuard
-
-    T = typing.TypeVar("T")
-    S = typing.TypeVar("S", bound=typing.Type[typing.Any])
-
-UNDEFINED_DEFAULT = tanjun.commands.slash.UNDEFINED_DEFAULT
-"""Singleton for tanjun's undefined defaults."""
+_AnnotatedAlias = type(typing.Annotated[object, object])
 
 _type_mapping: typing.Mapping[type, hikari.OptionType] = {
     str: hikari.OptionType.STRING,
@@ -35,8 +39,6 @@ _type_mapping: typing.Mapping[type, hikari.OptionType] = {
     bool: hikari.OptionType.BOOLEAN,
 }
 """Generic discord types"""
-
-__all__ = ["parse_parameter", "parse_docstring", "create_command"]
 
 
 def issubclass_(obj: typing.Any, tp: S) -> TypeGuard[S]:
@@ -64,10 +66,9 @@ def _try_enum_option(
     if typing.get_origin(tp) == typing.Literal:
         return {str(x): x for x in typing.get_args(tp)}
 
-    if isinstance(tp, enum.EnumMeta):
-        # apparentely this is not availible during type-hinting???
-        members = getattr(tp, "__members__")
-        return {name: value.value for name, value in members.items()}
+    # Users may attempt to use their own enums
+    if members := getattr(tp, "__members__", None):
+        return {name: value for name, value in members.items()}
 
     return None
 
@@ -96,6 +97,10 @@ def parse_parameter(
     description: typing.Optional[str] = None,
 ) -> None:
     """Parse a parameter in a command signature."""
+    if isinstance(annotation, _AnnotatedAlias):
+        # should we really only care about the first one?
+        annotation = typing.get_args(annotation)[1]
+
     annotation = _strip_optional(annotation)
     description = description or "-"
 
@@ -105,7 +110,12 @@ def parse_parameter(
     choices = None
     if choices := _try_enum_option(annotation):
         # surely the user wouldn't mix types right?
-        annotation = type(next(iter(choices)))
+        annotation = type(next(iter(choices.values())))
+
+    min_value, max_value = None, None
+    if isinstance(annotation, Range):
+        min_value, max_value = annotation.min_value, annotation.max_value
+        annotation = annotation.underlying_type
 
     if option_type := _type_mapping.get(annotation):
         command._add_option(
@@ -114,6 +124,8 @@ def parse_parameter(
             option_type,
             default=default,
             choices=choices,
+            min_value=min_value,
+            max_value=max_value,
         )
         return
 
@@ -173,8 +185,8 @@ def create_command(
         sort_options=sort_options,
     )
 
-    signature = hikari_reflect.resolve_signature(function)
-    parameters = iter(signature.parameters.values())
+    sig = signature(function)
+    parameters = iter(sig.parameters.values())
     context_paramter = next(parameters)
 
     for parameter in parameters:
