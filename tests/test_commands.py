@@ -11,7 +11,7 @@ def test_as_slash_command():
     @commands.as_slash_command()
     async def command(
         context: tanjun.context.SlashContext,
-        number: types.Range[0, 1.0],
+        number: typing.Annotated[float, types.Range[0, 1.0]],
         choices: typing.Literal[1, 2, 3],
         member: hikari.Member = None,
         channel: typing.Union[hikari.GuildTextChannel, hikari.GuildNewsChannel] = None,

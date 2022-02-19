@@ -57,7 +57,23 @@ class MyEnum(enum.IntEnum):
 option: MyEnum
 ```
 
-## Users
+### Ranges
+
+Integer and float options support min and max boundaries. These can be set with `tanchi.Range`.
+The type of the option is discerned from the boundaries.
+
+```py
+int_option: tanchi.Range[1, 10]
+float_option: tanchi.Range[0.0, 1.0]
+```
+
+> Because mypy does not respect `__class_getitem__` you'll most likely have to use `typing.Annotated`
+>
+> ```py
+> option: typing.Annotated[int, tanchi.Range(1, 10)]
+> ```
+
+### Users
 
 Tanchi makes no distinction between the different types of users, but tanjun enforces `hikari.Member` at runtime.
 
