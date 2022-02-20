@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import enum
 import inspect
 import re
 import sys
@@ -10,12 +9,14 @@ import typing
 import hikari
 import tanjun
 
+from . import conversion
 from .types import UNDEFINED_DEFAULT, Mentionable, Range, signature
 
 if typing.TYPE_CHECKING:
     from typing_extensions import TypeGuard
 
     T = typing.TypeVar("T")
+    TryReturnT = typing.TypeVar("TryReturnT", bound=typing.Optional[typing.Sequence[typing.Any]])
     S = typing.TypeVar("S", bound=typing.Type[typing.Any])
 
 
@@ -53,6 +54,32 @@ def issubclass_(obj: typing.Any, tp: S) -> TypeGuard[S]:
     return isinstance(obj, type) and issubclass(obj, tp)
 
 
+def _get_value_args(tp: typing.Any) -> typing.Sequence[typing.Any]:
+    """Get all args that are not None"""
+    return [x for x in typing.get_args(tp) if x not in _NoneTypes]
+
+
+def support_union(func: typing.Callable[[typing.Any], TryReturnT]) -> typing.Callable[[typing.Any], TryReturnT]:
+    """Make a function support returning sequences if a union is passed in"""
+
+    def wrapper(tp: typing.Any) -> typing.Any:
+        if typing.get_origin(tp) not in _UnionTypes:
+            return func(tp)
+
+        results: typing.List[typing.Any] = []
+
+        for x in _get_value_args(tp):
+            value: typing.Sequence[typing.Any] = wrapper(x)
+            if not value:
+                return None
+
+            results += value
+
+        return results
+
+    return wrapper
+
+
 def _strip_optional(tp: typing.Any) -> typing.Any:
     """Remove all None from a union"""
     if typing.get_origin(tp) not in _UnionTypes:
@@ -66,9 +93,7 @@ def _strip_optional(tp: typing.Any) -> typing.Any:
     return typing.Union[tuple(args)]  # type: ignore
 
 
-def _try_enum_option(
-    tp: typing.Any,
-) -> typing.Optional[typing.Mapping[str, typing.Any]]:
+def _try_enum_option(tp: typing.Any) -> typing.Optional[typing.Mapping[str, typing.Any]]:
     """Try parsing a literal or an enum into a list of arguments"""
     if typing.get_origin(tp) == typing.Literal:
         return {str(x): x for x in typing.get_args(tp)}
@@ -80,20 +105,24 @@ def _try_enum_option(
     return None
 
 
-def _try_channel_option(
-    tp: typing.Any,
-) -> typing.Optional[typing.Sequence[typing.Type[hikari.PartialChannel]]]:
+@support_union
+def _try_channel_option(tp: typing.Any) -> typing.Optional[typing.Sequence[typing.Type[hikari.PartialChannel]]]:
     """Try parsing an annotation into channel types"""
-    if typing.get_origin(tp) in _UnionTypes:
-        args = [x for x in typing.get_args(tp) if x not in _NoneTypes]
-    else:
-        args = [tp]
+    if issubclass_(tp, hikari.PartialChannel):
+        return [tp]
 
-    for arg in args:
-        if not issubclass_(arg, hikari.PartialChannel):
-            return None
+    return None
 
-    return args
+
+@support_union
+def _try_convertered_option(tp: typing.Any) -> typing.Optional[typing.Sequence[typing.Callable[..., typing.Any]]]:
+    """Try parsing an annotation into all the converters it would need"""
+    converters = conversion.get_converters()
+    print(converters)
+    if converter := converters.get(tp):
+        return [converter]
+
+    return None
 
 
 def parse_parameter(
@@ -113,6 +142,9 @@ def parse_parameter(
 
     if default is inspect.Parameter.empty:
         default = UNDEFINED_DEFAULT
+
+    if annotation is inspect.Parameter.empty:
+        raise TypeError(f"Missing annotation for slash command option {name!r}")
 
     choices = None
     if choices := _try_enum_option(annotation):
@@ -148,20 +180,24 @@ def parse_parameter(
 
     if issubclass_(annotation, hikari.Member):
         command.add_member_option(name, description, default=default)
+        return
     elif issubclass_(annotation, hikari.PartialUser):
         command.add_user_option(name, description, default=default)
+        return
 
-    elif types := _try_channel_option(annotation):
+    if types := _try_channel_option(annotation):
         command.add_channel_option(name, description, default=default, types=types)
+        return
 
-    else:
-        raise TypeError(f"Unknown slash command option type: {annotation!r}")
+    if converters := _try_convertered_option(annotation):
+        command.add_str_option(name, description, default=default, converters=converters)
+        return
+
+    raise TypeError(f"Unknown slash command option type: {annotation!r}")
 
 
 def parse_docstring(docstring: str) -> typing.Tuple[str, typing.Mapping[str, str]]:
     """Parse a docstring and get all parameter descriptions"""
-    # TODO: Allow more than sphinx
-
     docstring = inspect.cleandoc(docstring)
 
     main = docstring.splitlines()[0]
@@ -173,6 +209,7 @@ def parse_docstring(docstring: str) -> typing.Tuple[str, typing.Mapping[str, str
         for match in re.finditer(r"(\w+)\s*:.*\n\s+(.+)", docstring):
             name, desc = match[1], match[2]
             parameters[name] = " ".join(x.strip() for x in desc.splitlines())
+
     elif match := re.search(r"Args\s*:\s*\n((?:.|\n)*)(\n{2,})?", docstring):
         # Google
         docstring = match[1]
@@ -212,11 +249,14 @@ def create_command(
 
     sig = signature(function)
     parameters = iter(sig.parameters.values())
-    context_paramter = next(parameters)
+    context_parameter = next(parameters)
+
+    if context_parameter.annotation is not inspect.Parameter.empty:
+        if not issubclass_(context_parameter.annotation, tanjun.abc.Context):
+            raise TypeError("First argument in a slash command must be the context.")
 
     for parameter in parameters:
         if isinstance(parameter.default, tanjun.injecting.Injected):
-            # keep in the signature
             continue
 
         parse_parameter(

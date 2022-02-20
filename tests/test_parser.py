@@ -7,7 +7,7 @@ import hikari
 import pytest
 import tanjun
 
-from tanchi import parser, types
+from tanchi import parser, types, conversion
 
 
 def test_strip_optional():
@@ -64,6 +64,23 @@ def test_try_channel_option_with_union():
 def test_try_channel_option_with_misc():
     x = typing.Optional[object]
     assert parser._try_channel_option(x) is None
+
+
+def test_try_convertered_option_with_single():
+    x = hikari.UnicodeEmoji
+    converters = parser._try_convertered_option(x)
+
+    assert converters
+    assert isinstance(converters[0], conversion.ToUnicodeEmoji)
+
+
+def test_try_convertered_option_with_union():
+    x = typing.Union[hikari.Invite, hikari.InviteWithMetadata]
+    converters = parser._try_convertered_option(x)
+
+    assert converters
+    assert isinstance(converters[0], tanjun.conversion.ToInvite)
+    assert isinstance(converters[1], tanjun.conversion.ToInviteWithMetadata)
 
 
 def test_parse_parameter_with_int():
@@ -186,6 +203,24 @@ def test_parse_parameter_with_range():
         min_value=0,
         max_value=1.0,
     )
+
+
+def test_parse_parameter_with_converter():
+    command = mock.Mock(tanjun.SlashCommand)
+    parser.parse_parameter(
+        command,
+        name="emoji",
+        description="converter emoji",
+        annotation=hikari.KnownCustomEmoji,
+    )
+    command.add_str_option.assert_called_once_with(
+        "emoji",
+        "converter emoji",
+        default=mock.ANY,
+        converters=[mock.ANY],
+    )
+    converter = command.add_str_option.call_args.kwargs["converters"][0]
+    assert isinstance(converter, tanjun.conversion.ToEmoji)
 
 
 def test_parse_parameter_with_misc():

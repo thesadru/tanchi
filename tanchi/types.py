@@ -34,8 +34,7 @@ def signature(
 
     params = []
     for name, param in signature.parameters.items():
-        annotation = resolved_typehints.get(name, inspect.Parameter.empty)
-        params.append(param.replace(annotation=annotation))
+        params.append(param.replace(annotation=resolved_typehints.get(name, inspect.Parameter.empty)))
 
     return_annotation = resolved_typehints.get("return", inspect.Parameter.empty)
 
@@ -45,23 +44,11 @@ def signature(
 class RangeMeta(type):
     """Custom Generic implementation for Range"""
 
-    # @typing.overload
-    # def __getitem__(self, args: typing.Tuple[typing.Union[int, ellipsis], typing.Union[int, ellipsis]]) -> typing.Type[int]:
-    #     ...
-
-    # @typing.overload
-    # def __getitem__(self, args: typing.Tuple[typing.Union[float, ellipsis], typing.Union[float, ellipsis]]) -> typing.Type[float]:
-    #     ...
-
     def __getitem__(
         self,
-        args: typing.Tuple[
-            typing.Union[RangeValueT, ellipsis], typing.Union[RangeValueT, ellipsis]
-        ],
+        args: typing.Tuple[typing.Union[RangeValueT, ellipsis], typing.Union[RangeValueT, ellipsis]],
     ) -> typing.Type[RangeValueT]:
-        a, b = typing.cast(
-            "list[RangeValue]", [None if x is Ellipsis else x for x in args]
-        )
+        a, b = typing.cast("list[RangeValue]", [None if x is Ellipsis else x for x in args])
         r = Range(a, b)
 
         return typing.cast("type[RangeValueT]", r)

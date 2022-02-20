@@ -15,10 +15,7 @@ def as_slash_command(
     default_to_ephemeral: typing.Optional[bool] = None,
     is_global: bool = True,
     sort_options: bool = True,
-) -> typing.Callable[
-    [tanjun.abc.CommandCallbackSigT],
-    tanjun.SlashCommand[tanjun.abc.CommandCallbackSigT],
-]:
+) -> typing.Callable[[tanjun.abc.CommandCallbackSigT], tanjun.SlashCommand[tanjun.abc.CommandCallbackSigT]]:
     """Build a SlashCommand by decorating a function."""
     return lambda func: parser.create_command(
         func,

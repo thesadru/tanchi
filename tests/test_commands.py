@@ -10,7 +10,7 @@ from tanchi import commands, types
 def test_as_slash_command():
     @commands.as_slash_command()
     async def command(
-        context: tanjun.context.SlashContext,
+        context: tanjun.abc.SlashContext,
         number: typing.Annotated[float, types.Range[0, 1.0]],
         choices: typing.Literal[1, 2, 3],
         member: hikari.Member = None,
@@ -77,9 +77,27 @@ def test_as_slash_command():
     )
 
 
+def test_google_docstring():
+    @commands.as_slash_command()
+    async def google_docstring(context: tanjun.abc.SlashContext, a: str, b: int, c: bool):
+        """Google-style docstring
+
+        Args:
+            a (str): Description for a
+            b (`builtins.int`, optional): Description for b
+            c : Description for c
+        """
+
+    builder = google_docstring.build()
+    assert builder.description == "Google-style docstring"
+    assert builder.options[0].description == "Description for a"
+    assert builder.options[1].description == "Description for b"
+    assert builder.options[2].description == "Description for c"
+
+
 def test_missing_docstring():
     with pytest.raises(TypeError):
 
         @commands.as_slash_command()
-        async def missing_docstring(context: tanjun.context.SlashContext):
-            pass
+        async def missing_docstring(context: tanjun.abc.SlashContext):
+            ...
