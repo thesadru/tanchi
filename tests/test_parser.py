@@ -7,7 +7,7 @@ import hikari
 import pytest
 import tanjun
 
-from tanchi import parser, types, conversion
+from tanchi import conversion, parser, types
 
 
 def test_strip_optional():

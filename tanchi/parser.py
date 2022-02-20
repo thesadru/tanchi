@@ -118,7 +118,6 @@ def _try_channel_option(tp: typing.Any) -> typing.Optional[typing.Sequence[typin
 def _try_convertered_option(tp: typing.Any) -> typing.Optional[typing.Sequence[typing.Callable[..., typing.Any]]]:
     """Try parsing an annotation into all the converters it would need"""
     converters = conversion.get_converters()
-    print(converters)
     if converter := converters.get(tp):
         return [converter]
 

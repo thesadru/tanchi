@@ -1,5 +1,7 @@
 """Converters that are not availible in tanjun itself"""
+import datetime
 import inspect
+import re
 import typing
 
 import hikari
@@ -59,3 +61,29 @@ class ToUnicodeEmoji(CachelessConverter[hikari.UnicodeEmoji]):
 
 class ToAnyEmoji(CachelessConverter[hikari.Emoji]):
     __call__ = hikari.Emoji.parse
+
+
+class ToColor(CachelessConverter[hikari.Color]):
+    __call__ = hikari.Color.of
+
+
+class ToSnowflake(CachelessConverter[hikari.Snowflake]):
+    __call__ = hikari.Snowflake
+
+
+class ToDatetime(CachelessConverter[datetime.datetime]):
+    def __call__(self, argument: str) -> datetime.datetime:
+        if match := re.search(r"<t:(\d+)(?::[tTdDfFR])?>", argument):
+            argument = match[1]
+
+        try:
+            return datetime.datetime.fromtimestamp(float(argument), tz=datetime.timezone.utc)
+        except (ValueError, TypeError, OverflowError):
+            pass
+
+        try:
+            return datetime.datetime.fromisoformat(argument).astimezone(datetime.timezone.utc)
+        except ValueError:
+            pass
+
+        raise ValueError("Could not parse the date")

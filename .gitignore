@@ -3,6 +3,16 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# PyCharm/IntelliJ-generated files
+*.iml
+.idea/
+
+# Visual Studio Code-generated files
+.settings/
+.project
+.vscode/
+.vs/
+
 # C extensions
 *.so
 
