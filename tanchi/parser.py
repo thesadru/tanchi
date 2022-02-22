@@ -100,7 +100,7 @@ def _try_enum_option(tp: typing.Any) -> typing.Optional[typing.Mapping[str, typi
 
     # Users may attempt to use their own enums
     if members := getattr(tp, "__members__", None):
-        return {name: value for name, value in members.items()}
+        return {name: getattr(value, "value", value) for name, value in members.items()}
 
     return None
 
