@@ -1,5 +1,6 @@
 import typing
 
+import alluka
 import hikari
 import pytest
 import tanjun
@@ -13,11 +14,13 @@ def test_as_slash_command():
         context: tanjun.abc.SlashContext,
         number: typing.Annotated[float, types.Range[0, 1.0]],
         choices: typing.Literal[1, 2, 3],
-        member: hikari.Member = None,
-        channel: typing.Union[hikari.GuildTextChannel, hikari.GuildNewsChannel] = None,
-        role: hikari.Role = None,
+        member: typing.Optional[hikari.Member] = None,
+        channel: typing.Optional[typing.Union[hikari.GuildTextChannel, hikari.GuildNewsChannel]] = None,
+        role: typing.Optional[hikari.Role] = None,
         *,
-        injection: hikari.RESTAware = tanjun.inject(type=hikari.RESTAware),
+        injection1: hikari.RESTAware = alluka.inject(type=hikari.RESTAware),
+        injection2: hikari.RESTAware = alluka.inject(callback=hikari.RESTAware),
+        injection3: alluka.Injected[hikari.RESTAware] = ...,
     ):
         """Command description.
 

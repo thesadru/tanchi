@@ -12,6 +12,7 @@ __all__ = ["Range", "Mentionable"]
 T = typing.TypeVar("T")
 RangeValue = typing.Union[int, float]
 RangeValueT = typing.TypeVar("RangeValueT", bound=RangeValue)
+CommandCallbackSigT = typing.TypeVar("CommandCallbackSigT", bound=tanjun.abc.CommandCallbackSig)
 
 UNDEFINED_DEFAULT = tanjun.commands.slash.UNDEFINED_DEFAULT
 """Singleton for tanjun's undefined defaults."""

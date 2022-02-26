@@ -6,11 +6,12 @@ import sys
 import types
 import typing
 
+import alluka
 import hikari
 import tanjun
 
 from . import conversion
-from .types import UNDEFINED_DEFAULT, Mentionable, Range, signature
+from .types import UNDEFINED_DEFAULT, CommandCallbackSigT, Mentionable, Range, signature
 
 if typing.TYPE_CHECKING:
     from typing_extensions import TypeGuard
@@ -136,6 +137,9 @@ def parse_parameter(
         # should we really only care about the first one?
         annotation = typing.get_args(annotation)[1]
 
+    if isinstance(annotation, alluka._types.InjectedTypes):
+        return
+
     annotation = _strip_optional(annotation)
     description = description or "-"
 
@@ -220,7 +224,7 @@ def parse_docstring(docstring: str) -> typing.Tuple[str, typing.Mapping[str, str
 
 
 def create_command(
-    function: tanjun.abc.CommandCallbackSigT,
+    function: CommandCallbackSigT,
     *,
     name: typing.Optional[str] = None,
     always_defer: bool = False,
@@ -228,7 +232,7 @@ def create_command(
     default_to_ephemeral: typing.Optional[bool] = None,
     is_global: bool = True,
     sort_options: bool = True,
-) -> tanjun.SlashCommand[tanjun.abc.CommandCallbackSigT]:
+) -> tanjun.SlashCommand[CommandCallbackSigT]:
     """Build a SlashCommand."""
     if not (doc := function.__doc__):
         raise TypeError("Function missing docstring, cannot create descriptions")
@@ -255,7 +259,7 @@ def create_command(
             raise TypeError("First argument in a slash command must be the context.")
 
     for parameter in parameters:
-        if isinstance(parameter.default, tanjun.injecting.Injected):
+        if isinstance(parameter.default, alluka._types.InjectedDescriptor):
             continue
 
         parse_parameter(
