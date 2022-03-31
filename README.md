@@ -73,14 +73,6 @@ float_option: tanchi.Range[0.0, 1.0]
 > option: typing.Annotated[int, tanchi.Range(1, 10)]
 > ```
 
-### Users
-
-Tanchi makes no distinction between the different types of users, but tanjun enforces `hikari.Member` at runtime.
-
-```py
-option: hikari.Member
-```
-
 ### Channels
 
 Channels types may be enforced with the help of `typing.Union`. If you want all channel types use `hikari.GuildChannel`
@@ -88,6 +80,26 @@ Channels types may be enforced with the help of `typing.Union`. If you want all 
 ```py
 option: typing.Union[hikari.GuildTextChannel, hikari.GuildNewsChannel]
 ```
+
+### Converters
+
+Types are implicitly converted if a builtin tanjun converter is available.
+
+```py
+option: hikari.Emoji
+```
+
+To provide your own converter you can use `tanchi.Converted`.
+
+```py
+option: tanchi.Converted[int, round]
+```
+
+> Because mypy does not respect `__class_getitem__` you'll most likely have to use `typing.Annotated`
+>
+> ```py
+> option: typing.Annotated[int, tanchi.Converted(range)]
+> ```
 
 ### Docstrings
 

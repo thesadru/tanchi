@@ -10,6 +10,35 @@ import tanjun
 from tanchi import conversion, parser, types
 
 
+def parse_parameter(
+    command: tanjun.SlashCommand[typing.Any],
+    annotation: typing.Any,
+    *,
+    default: typing.Any = types.UNDEFINED_DEFAULT,
+) -> None:
+    parser.parse_parameter(
+        command,
+        name="name",
+        annotation=annotation,
+        default=default,
+    )
+
+
+def assert_called_with(
+    func: mock.Mock,
+    *args: typing.Any,
+    **kwargs: typing.Any,
+) -> None:
+    call_args: typing.Sequence[typing.Any] = func.call_args.args
+    for value in args:
+        assert value in call_args, f"Expected {mock._Call((args, kwargs))!r} but called with {func.call_args!r}"
+
+    call_kwargs: typing.Mapping[str, typing.Any] = func.call_args.kwargs
+    for key, value in kwargs.items():
+        assert key in call_kwargs, f"{func} was not called with a parameter called {key!r}"
+        assert call_kwargs[key] == value, f"Expected {mock._Call((args, kwargs))!r} but called with {func.call_args!r}"
+
+
 def test_strip_optional():
     x = typing.Optional[int]
     assert parser._strip_optional(x) is int
@@ -85,20 +114,12 @@ def test_try_convertered_option_with_union():
 
 def test_parse_parameter_with_int():
     command = mock.Mock(tanjun.SlashCommand)
-    parser.parse_parameter(
-        command,
-        name="integer",
-        description="description",
-        annotation=int,
-        default=inspect.Parameter.empty,
-    )
 
-    command._add_option.assert_called_once_with(
-        "integer",
-        "description",
+    parse_parameter(command, int)
+
+    assert_called_with(
+        command._add_option,
         hikari.OptionType.INTEGER,
-        default=types.UNDEFINED_DEFAULT,
-        choices=None,
         min_value=None,
         max_value=None,
     )
@@ -106,64 +127,33 @@ def test_parse_parameter_with_int():
 
 def test_parse_parameter_with_string_choices():
     command = mock.Mock(tanjun.SlashCommand)
-    parser.parse_parameter(
-        command,
-        name="string",
-        description="description",
-        annotation=typing.Literal["A", "B", "C"],
-    )
 
-    command._add_option.assert_called_once_with(
-        "string",
-        "description",
+    parse_parameter(command, typing.Literal["A", "B", "C"])
+
+    assert_called_with(
+        command._add_option,
         hikari.OptionType.STRING,
-        default=mock.ANY,
         choices={"A": "A", "B": "B", "C": "C"},
-        min_value=mock.ANY,
-        max_value=mock.ANY,
     )
 
 
 def test_parse_parameter_with_user():
     command = mock.Mock(tanjun.SlashCommand)
 
-    parser.parse_parameter(
-        command,
-        name="user",
-        description="description",
-        annotation=hikari.User,
-    )
-    command.add_user_option.assert_called_once_with(
-        "user",
-        "description",
-        default=mock.ANY,
-    )
+    parse_parameter(command, hikari.User)
+    command.add_user_option.assert_called()
 
-    parser.parse_parameter(
-        command,
-        name="member",
-        description="description",
-        annotation=hikari.InteractionMember,
-    )
-    command.add_member_option.assert_called_once_with(
-        "member",
-        "description",
-        default=mock.ANY,
-    )
+    parse_parameter(command, hikari.InteractionMember)
+    command.add_member_option.assert_called()
 
 
 def test_parse_parameter_with_channel():
     command = mock.Mock(tanjun.SlashCommand)
-    parser.parse_parameter(
-        command,
-        name="channel",
-        description="description",
-        annotation=typing.Union[hikari.GuildVoiceChannel, hikari.GuildStageChannel],
-    )
-    command.add_channel_option.assert_called_once_with(
-        "channel",
-        "description",
-        default=mock.ANY,
+
+    parse_parameter(command, typing.Union[hikari.GuildVoiceChannel, hikari.GuildStageChannel])
+
+    assert_called_with(
+        command.add_channel_option,
         types=[hikari.GuildVoiceChannel, hikari.GuildStageChannel],
     )
 
@@ -171,35 +161,20 @@ def test_parse_parameter_with_channel():
 def test_parse_parameter_with_range():
     command = mock.Mock(tanjun.SlashCommand)
 
-    parser.parse_parameter(
-        command,
-        name="range",
-        description="int range",
-        annotation=types.Range(1, 2),
-    )
-    command._add_option.assert_called_once_with(
-        "range",
-        "int range",
+    parse_parameter(command, types.Range(1, 2))
+    assert_called_with(
+        command._add_option,
         hikari.OptionType.INTEGER,
-        default=mock.ANY,
-        choices=None,
         min_value=1,
         max_value=2,
     )
 
     command = mock.Mock(tanjun.SlashCommand)
-    parser.parse_parameter(
-        command,
-        name="range",
-        description="float range",
-        annotation=types.Range(0, 1.0),
-    )
-    command._add_option.assert_called_once_with(
-        "range",
-        "float range",
+
+    parse_parameter(command, types.Range(0, 1.0))
+    assert_called_with(
+        command._add_option,
         hikari.OptionType.FLOAT,
-        default=mock.ANY,
-        choices=None,
         min_value=0,
         max_value=1.0,
     )
@@ -207,24 +182,41 @@ def test_parse_parameter_with_range():
 
 def test_parse_parameter_with_converter():
     command = mock.Mock(tanjun.SlashCommand)
-    parser.parse_parameter(
-        command,
-        name="emoji",
-        description="converter emoji",
-        annotation=hikari.KnownCustomEmoji,
-    )
-    command.add_str_option.assert_called_once_with(
-        "emoji",
-        "converter emoji",
-        default=mock.ANY,
+
+    parse_parameter(command, hikari.KnownCustomEmoji)
+
+    assert_called_with(
+        command.add_str_option,
         converters=[mock.ANY],
     )
     converter = command.add_str_option.call_args.kwargs["converters"][0]
     assert isinstance(converter, tanjun.conversion.ToEmoji)
 
 
+def test_parse_parameter_with_converter_class():
+    command = mock.Mock(tanjun.SlashCommand)
+
+    parse_parameter(command, types.Converted[int])
+    assert_called_with(
+        command.add_str_option,
+        converters=[mock.ANY],
+    )
+    converter = command.add_str_option.call_args.kwargs["converters"][0]
+    assert converter == int
+
+    command = mock.Mock(tanjun.SlashCommand)
+
+    parse_parameter(command, types.Converted[int, round])
+    assert_called_with(
+        command.add_str_option,
+        converters=[mock.ANY],
+    )
+    converter = command.add_str_option.call_args.kwargs["converters"][0]
+    assert converter == round
+
+
 def test_parse_parameter_with_misc():
     command = mock.Mock(tanjun.SlashCommand)
 
     with pytest.raises(TypeError):
-        parser.parse_parameter(command, name="foo", annotation=object())
+        parse_parameter(command, annotation=object())

@@ -7,12 +7,14 @@ import typing
 import hikari
 import tanjun
 
-__all__ = ["Range", "Mentionable"]
+__all__ = ["Range", "Converted", "Mentionable"]
 
 T = typing.TypeVar("T")
+MaybeAwaitable = typing.Union[typing.Awaitable[T], T]
+CommandCallbackSigT = typing.TypeVar("CommandCallbackSigT", bound=tanjun.abc.CommandCallbackSig)
+
 RangeValue = typing.Union[int, float]
 RangeValueT = typing.TypeVar("RangeValueT", bound=RangeValue)
-CommandCallbackSigT = typing.TypeVar("CommandCallbackSigT", bound=tanjun.abc.CommandCallbackSig)
 
 UNDEFINED_DEFAULT = tanjun.commands.slash.UNDEFINED_DEFAULT
 """Singleton for tanjun's undefined defaults."""
@@ -43,8 +45,6 @@ def signature(
 
 
 class RangeMeta(type):
-    """Custom Generic implementation for Range"""
-
     def __getitem__(
         self,
         args: typing.Tuple[typing.Union[RangeValueT, ellipsis], typing.Union[RangeValueT, ellipsis]],
@@ -77,7 +77,24 @@ class Range(metaclass=RangeMeta):
             self.underlying_type = int
 
 
-if typing.TYPE_CHECKING:
-    Mentionable = typing.Union[hikari.Role, hikari.User]
-else:
-    Mentionable = type("Mentionable", (hikari.User, hikari.Role), {})
+class ConvertedMeta(type):
+    def __getitem__(
+        self,
+        args: typing.Union[
+            typing.Callable[..., MaybeAwaitable[T]],
+            typing.Tuple[typing.Any, typing.Callable[..., MaybeAwaitable[T]]],
+        ],
+    ) -> typing.Type[T]:
+        converter = args[-1] if isinstance(args, tuple) else args
+        return typing.cast("type[T]", Converted(converter))
+
+
+class Converted(metaclass=ConvertedMeta):
+    converter: typing.Callable[..., MaybeAwaitable[typing.Any]]
+
+    def __init__(self, converter: typing.Callable[..., MaybeAwaitable[typing.Any]]) -> None:
+        self.converter = converter
+
+
+Mentionable = typing.Union[hikari.Role, hikari.User]
+"""Custom type denoting a Role or User."""

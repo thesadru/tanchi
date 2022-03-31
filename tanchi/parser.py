@@ -3,15 +3,13 @@ from __future__ import annotations
 import inspect
 import re
 import sys
-import types
 import typing
 
 import alluka
 import hikari
 import tanjun
 
-from . import conversion
-from .types import UNDEFINED_DEFAULT, CommandCallbackSigT, Mentionable, Range, signature
+from . import conversion, types
 
 if typing.TYPE_CHECKING:
     from typing_extensions import TypeGuard
@@ -25,6 +23,8 @@ __all__ = ["parse_parameter", "parse_docstring", "create_command"]
 
 
 if sys.version_info >= (3, 10):
+    import types
+
     _UnionTypes = {typing.Union, types.UnionType}
     _NoneTypes = {None, types.NoneType}
 
@@ -44,7 +44,7 @@ _builtin_type_mapping: typing.Mapping[type, hikari.OptionType] = {
 
 _hikari_type_mapping: typing.Mapping[typing.Any, int] = {
     hikari.Role: hikari.OptionType.ROLE,
-    Mentionable: hikari.OptionType.MENTIONABLE,
+    types.Mentionable: hikari.OptionType.MENTIONABLE,
     hikari.Attachment: 11,
 }
 """Generic discord types with hikari equivalents"""
@@ -52,7 +52,13 @@ _hikari_type_mapping: typing.Mapping[typing.Any, int] = {
 
 def issubclass_(obj: typing.Any, tp: S) -> TypeGuard[S]:
     """More lenient issubclass"""
-    return isinstance(obj, type) and issubclass(obj, tp)
+    try:
+        return isinstance(obj, type) and issubclass(obj, tp)
+    except TypeError:
+        if isinstance(tp, typing._GenericAlias):  # type: ignore
+            return False
+
+        raise
 
 
 def _get_value_args(tp: typing.Any) -> typing.Sequence[typing.Any]:
@@ -118,6 +124,9 @@ def _try_channel_option(tp: typing.Any) -> typing.Optional[typing.Sequence[typin
 @support_union
 def _try_convertered_option(tp: typing.Any) -> typing.Optional[typing.Sequence[typing.Callable[..., typing.Any]]]:
     """Try parsing an annotation into all the converters it would need"""
+    if isinstance(tp, types.Converted):
+        return [tp.converter]
+
     converters = conversion.get_converters()
     if converter := converters.get(tp):
         return [converter]
@@ -129,7 +138,7 @@ def parse_parameter(
     command: tanjun.SlashCommand[typing.Any],
     name: str,
     annotation: typing.Any,
-    default: typing.Any = UNDEFINED_DEFAULT,
+    default: typing.Any = types.UNDEFINED_DEFAULT,
     description: typing.Optional[str] = None,
 ) -> None:
     """Parse a parameter in a command signature."""
@@ -144,7 +153,7 @@ def parse_parameter(
     description = description or "-"
 
     if default is inspect.Parameter.empty:
-        default = UNDEFINED_DEFAULT
+        default = types.UNDEFINED_DEFAULT
 
     if annotation is inspect.Parameter.empty:
         raise TypeError(f"Missing annotation for slash command option {name!r}")
@@ -155,7 +164,7 @@ def parse_parameter(
         annotation = type(next(iter(choices.values())))
 
     min_value, max_value = None, None
-    if isinstance(annotation, Range):
+    if isinstance(annotation, types.Range):
         min_value, max_value = annotation.min_value, annotation.max_value
         annotation = annotation.underlying_type
 
@@ -188,8 +197,8 @@ def parse_parameter(
         command.add_user_option(name, description, default=default)
         return
 
-    if types := _try_channel_option(annotation):
-        command.add_channel_option(name, description, default=default, types=types)
+    if channel_types := _try_channel_option(annotation):
+        command.add_channel_option(name, description, default=default, types=channel_types)
         return
 
     if converters := _try_convertered_option(annotation):
@@ -224,7 +233,7 @@ def parse_docstring(docstring: str) -> typing.Tuple[str, typing.Mapping[str, str
 
 
 def create_command(
-    function: CommandCallbackSigT,
+    function: types.CommandCallbackSigT,
     *,
     name: typing.Optional[str] = None,
     always_defer: bool = False,
@@ -232,7 +241,7 @@ def create_command(
     default_to_ephemeral: typing.Optional[bool] = None,
     is_global: bool = True,
     sort_options: bool = True,
-) -> tanjun.SlashCommand[CommandCallbackSigT]:
+) -> tanjun.SlashCommand[types.CommandCallbackSigT]:
     """Build a SlashCommand."""
     if not (doc := function.__doc__):
         raise TypeError("Function missing docstring, cannot create descriptions")
@@ -250,7 +259,7 @@ def create_command(
         sort_options=sort_options,
     )
 
-    sig = signature(function)
+    sig = types.signature(function)
     parameters = iter(sig.parameters.values())
     context_parameter = next(parameters)
 
