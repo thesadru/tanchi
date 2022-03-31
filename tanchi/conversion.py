@@ -39,8 +39,8 @@ class CachelessConverter(tanjun.conversion.BaseConverter[T]):
         return ()
 
     @property
-    def cache_components(self) -> hikari.CacheComponents:
-        return hikari.CacheComponents.NONE
+    def cache_components(self) -> hikari.api.CacheComponents:
+        return hikari.api.CacheComponents.NONE
 
     @property
     def intents(self) -> hikari.Intents:
