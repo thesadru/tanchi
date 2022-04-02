@@ -103,7 +103,8 @@ def _strip_optional(tp: typing.Any) -> typing.Any:
 def _try_enum_option(tp: typing.Any) -> typing.Optional[typing.Mapping[str, typing.Any]]:
     """Try parsing a literal or an enum into a list of arguments"""
     if typing.get_origin(tp) == typing.Literal:
-        return {str(x): x for x in typing.get_args(tp)}
+        # str.capitalize mimics the behavior of tanjun
+        return {str(x).capitalize(): x for x in typing.get_args(tp)}
 
     # Users may attempt to use their own enums
     if members := getattr(tp, "__members__", None):
@@ -122,10 +123,10 @@ def _try_channel_option(tp: typing.Any) -> typing.Optional[typing.Sequence[typin
 
 
 @support_union
-def _try_convertered_option(tp: typing.Any) -> typing.Optional[typing.Sequence[typing.Callable[..., typing.Any]]]:
+def _try_convertered_option(tp: typing.Any) -> typing.Optional[typing.Sequence[tanjun.commands.slash.ConverterSig]]:
     """Try parsing an annotation into all the converters it would need"""
     if isinstance(tp, types.Converted):
-        return [tp.converter]
+        return tp.converters
 
     converters = conversion.get_converters()
     if converter := converters.get(tp):
@@ -203,6 +204,15 @@ def parse_parameter(
 
     if converters := _try_convertered_option(annotation):
         command.add_str_option(name, description, default=default, converters=converters)
+        return
+
+    if isinstance(annotation, types.Autocompleted):
+        command.add_str_option(
+            name,
+            description,
+            autocomplete=annotation.autocomplete,
+            converters=annotation.converters,
+        )
         return
 
     raise TypeError(f"Unknown slash command option type: {annotation!r}")

@@ -7,10 +7,11 @@ import typing
 import hikari
 import tanjun
 
-__all__ = ["Range", "Converted", "Mentionable"]
+__all__ = ["Range", "Converted", "Mentionable", "Autocompleted"]
 
 T = typing.TypeVar("T")
-MaybeAwaitable = typing.Union[typing.Awaitable[T], T]
+MaybeAwaitable = typing.Union[typing.Coroutine[typing.Any, typing.Any, T], T]
+MaybeSequence = typing.Union[typing.Sequence[T], T]
 CommandCallbackSigT = typing.TypeVar("CommandCallbackSigT", bound=tanjun.abc.CommandCallbackSig)
 
 RangeValue = typing.Union[int, float]
@@ -18,6 +19,10 @@ RangeValueT = typing.TypeVar("RangeValueT", bound=RangeValue)
 
 UNDEFINED_DEFAULT = tanjun.commands.slash.UNDEFINED_DEFAULT
 """Singleton for tanjun's undefined defaults."""
+
+
+Mentionable = typing.Union[hikari.Role, hikari.User]
+"""Custom type denoting a Role or User."""
 
 
 def signature(
@@ -45,6 +50,21 @@ def signature(
 
 
 class RangeMeta(type):
+    # sometimes Range[1, 10] may be interpreted as Literal[1, 10] and we don't want that
+    @typing.overload
+    def __getitem__(  # type: ignore
+        self,
+        args: typing.Tuple[typing.Union[int, ellipsis], typing.Union[int, ellipsis]],
+    ) -> typing.Type[int]:
+        ...
+
+    @typing.overload
+    def __getitem__(
+        self,
+        args: typing.Tuple[typing.Union[float, ellipsis], typing.Union[float, ellipsis]],
+    ) -> typing.Type[float]:
+        ...
+
     def __getitem__(
         self,
         args: typing.Tuple[typing.Union[RangeValueT, ellipsis], typing.Union[RangeValueT, ellipsis]],
@@ -81,20 +101,61 @@ class ConvertedMeta(type):
     def __getitem__(
         self,
         args: typing.Union[
-            typing.Callable[..., MaybeAwaitable[T]],
-            typing.Tuple[typing.Any, typing.Callable[..., MaybeAwaitable[T]]],
+            MaybeSequence[typing.Callable[..., MaybeAwaitable[T]]],
+            typing.Tuple[T, MaybeSequence[typing.Callable[..., MaybeAwaitable[T]]]],
         ],
     ) -> typing.Type[T]:
-        converter = args[-1] if isinstance(args, tuple) else args
-        return typing.cast("type[T]", Converted(converter))
+        converters = args[1] if isinstance(args, tuple) else args
+        if not isinstance(converters, typing.Sequence):
+            converters = (converters,)
+
+        return typing.cast("type[T]", Converted(*converters))
 
 
 class Converted(metaclass=ConvertedMeta):
-    converter: typing.Callable[..., MaybeAwaitable[typing.Any]]
+    converters: typing.Sequence[tanjun.commands.slash.ConverterSig]
 
-    def __init__(self, converter: typing.Callable[..., MaybeAwaitable[typing.Any]]) -> None:
-        self.converter = converter
+    def __init__(self, *converters: tanjun.commands.slash.ConverterSig) -> None:
+        if len(converters) == 0:
+            raise ValueError("At least one converter must be provided.")
+
+        self.converters = converters
 
 
-Mentionable = typing.Union[hikari.Role, hikari.User]
-"""Custom type denoting a Role or User."""
+class AutocompletedMeta(type):
+    @typing.overload
+    def __getitem__(self, args: tanjun.abc.AutocompleteCallbackSig) -> typing.Type[str]:
+        ...
+
+    @typing.overload
+    def __getitem__(
+        self,
+        args: typing.Tuple[tanjun.abc.AutocompleteCallbackSig, MaybeSequence[typing.Callable[..., MaybeAwaitable[T]]]],
+    ) -> typing.Type[T]:
+        ...
+
+    def __getitem__(
+        self,
+        args: typing.Union[
+            tanjun.abc.AutocompleteCallbackSig,
+            typing.Tuple[tanjun.abc.AutocompleteCallbackSig, MaybeSequence[tanjun.commands.slash.ConverterSig]],
+        ],
+    ) -> typing.Type[typing.Any]:
+        autocomplete, converters = args if isinstance(args, tuple) else (args, ())
+        if not isinstance(converters, typing.Sequence):
+            converters = (converters,)
+
+        return typing.cast("type[typing.Any]", Autocompleted(autocomplete, *converters))
+
+
+class Autocompleted(metaclass=AutocompletedMeta):
+    autocomplete: tanjun.abc.AutocompleteCallbackSig
+    converters: typing.Sequence[tanjun.commands.slash.ConverterSig]
+
+    def __init__(
+        self,
+        autocomplete: tanjun.abc.AutocompleteCallbackSig,
+        *converters: tanjun.commands.slash.ConverterSig,
+    ) -> None:
+        self.autocomplete = autocomplete  # type: ignore[assignment]
+        self.converters = converters

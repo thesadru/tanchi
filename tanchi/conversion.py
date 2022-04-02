@@ -1,4 +1,5 @@
 """Converters that are not availible in tanjun itself"""
+import abc
 import datetime
 import inspect
 import re
@@ -12,7 +13,9 @@ __all__ = ["get_converters", "ToUnknownCustomEmoji", "ToUnicodeEmoji", "ToAnyEmo
 T = typing.TypeVar("T")
 
 
-def get_converters(origin: typing.Optional[type] = None) -> typing.Mapping[typing.Any, typing.Any]:
+def get_converters(
+    origin: typing.Optional[type] = None,
+) -> typing.Mapping[typing.Any, tanjun.commands.slash.ConverterSig]:
     """Get all created converters recursively"""
     origin = origin or tanjun.conversion.BaseConverter
 
@@ -33,7 +36,7 @@ def get_converters(origin: typing.Optional[type] = None) -> typing.Mapping[typin
     return converters
 
 
-class CachelessConverter(tanjun.conversion.BaseConverter[T]):
+class CachelessConverter(tanjun.conversion.BaseConverter[T], abc.ABC):
     @property
     def async_caches(self) -> typing.Sequence[typing.Any]:
         return ()

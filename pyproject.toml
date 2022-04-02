@@ -24,3 +24,15 @@ warn_unreachable = true
 # for pyright
 warn_unused_ignores = false
 warn_redundant_casts = false
+
+[tool.coverage.report]
+exclude_lines = [
+    "^if __name__ == ['\"]__main__['\"]:$",
+    "^\\s*raise$",
+    "^\\s*pass$",
+    "^\\s*\\.\\.\\.$",
+    "^\\s*@abc.abstractmethod$",
+    "^\\s*if typing.TYPE_CHECKING:$",
+    "^\\s*if not typing.TYPE_CHECKING:$",
+    "^\\s*if sys.version_info [<>=]+ \\(\\d+, \\d+\\):$"
+]

@@ -20,11 +20,11 @@ async def command(
     Parameters
     ----------
     integer : int
-        Int value.
+        Any integer value.
     flag : bool
-        Whether this flag should be enabled
+        Whether this flag should be enabled.
     channel : hikari.GuildTextChannel
-        channel to target.
+        The channel to target.
     """
 ```
 
@@ -67,12 +67,6 @@ int_option: tanchi.Range[1, 10]
 float_option: tanchi.Range[0.0, 1.0]
 ```
 
-> Because mypy does not respect `__class_getitem__` you'll most likely have to use `typing.Annotated`
->
-> ```py
-> option: typing.Annotated[int, tanchi.Range(1, 10)]
-> ```
-
 ### Channels
 
 Channels types may be enforced with the help of `typing.Union`. If you want all channel types use `hikari.GuildChannel`
@@ -95,11 +89,29 @@ To provide your own converter you can use `tanchi.Converted`.
 option: tanchi.Converted[int, round]
 ```
 
-> Because mypy does not respect `__class_getitem__` you'll most likely have to use `typing.Annotated`
->
-> ```py
-> option: typing.Annotated[int, tanchi.Converted(range)]
-> ```
+### Autocomplete
+
+Instead of using a decorator, autocompleters can be provided directly in the annotation with `tanchi.Autocompleted`.
+
+```py
+option: tanchi.Autocompleted[autocomplete_callback]
+```
+
+Since converters and autocompletion are often used together you can provide a converter directly.
+
+```py
+option: tanchi.Autocompleted[autocomplete_callback, converter_callback]
+```
+
+### MyPy compatibility
+
+Because mypy does not respect `__class_getitem__` you'll most likely have to use `typing.Annotated` for some cases.
+
+```py
+option: typing.Annotated[int, tanchi.Range(1, 10)]
+option: typing.Annotated[int, tanchi.Converted(range)]
+option: typing.Annotated[str, tanchi.Autocompleted(autocomplete_callback)]
+```
 
 ### Docstrings
 

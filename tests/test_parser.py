@@ -199,7 +199,7 @@ def test_parse_parameter_with_converter_class():
     parse_parameter(command, types.Converted[int])
     assert_called_with(
         command.add_str_option,
-        converters=[mock.ANY],
+        converters=(mock.ANY,),
     )
     converter = command.add_str_option.call_args.kwargs["converters"][0]
     assert converter == int
@@ -209,10 +209,31 @@ def test_parse_parameter_with_converter_class():
     parse_parameter(command, types.Converted[int, round])
     assert_called_with(
         command.add_str_option,
-        converters=[mock.ANY],
+        converters=(mock.ANY,),
     )
     converter = command.add_str_option.call_args.kwargs["converters"][0]
     assert converter == round
+
+
+def test_parse_parameter_with_annotated_class():
+    command = mock.Mock(tanjun.SlashCommand)
+
+    autocomplete = mock.Mock()
+
+    parse_parameter(command, types.Autocompleted[autocomplete])
+    assert_called_with(
+        command.add_str_option,
+        autocomplete=autocomplete,
+    )
+
+    command = mock.Mock(tanjun.SlashCommand)
+
+    parse_parameter(command, types.Autocompleted[autocomplete, int])
+    assert_called_with(
+        command.add_str_option,
+        autocomplete=autocomplete,
+        converters=(int,),
+    )
 
 
 def test_parse_parameter_with_misc():
