@@ -23,10 +23,10 @@ __all__ = ["parse_parameter", "parse_docstring", "create_command"]
 
 
 if sys.version_info >= (3, 10):
-    import types
+    from types import NoneType, UnionType
 
-    _UnionTypes = {typing.Union, types.UnionType}
-    _NoneTypes = {None, types.NoneType}
+    _UnionTypes = {typing.Union, UnionType}
+    _NoneTypes = {None, NoneType}
 
 else:
     _UnionTypes = {typing.Union}
@@ -42,23 +42,20 @@ _builtin_type_mapping: typing.Mapping[type, hikari.OptionType] = {
 }
 """Generic discord types with builtin equivalents"""
 
-_hikari_type_mapping: typing.Mapping[typing.Any, int] = {
+_hikari_type_mapping: typing.Mapping[typing.Any, hikari.OptionType] = {
     hikari.Role: hikari.OptionType.ROLE,
     types.Mentionable: hikari.OptionType.MENTIONABLE,
-    hikari.Attachment: 11,
+    hikari.Attachment: hikari.OptionType.ATTACHMENT,
 }
 """Generic discord types with hikari equivalents"""
 
 
 def issubclass_(obj: typing.Any, tp: S) -> TypeGuard[S]:
     """More lenient issubclass"""
-    try:
-        return isinstance(obj, type) and issubclass(obj, tp)
-    except TypeError:
-        if isinstance(tp, typing._GenericAlias):  # type: ignore
-            return False
+    if isinstance(tp, typing._GenericAlias):  # type: ignore
+        return obj == tp
 
-        raise
+    return isinstance(obj, type) and issubclass(obj, tp)
 
 
 def _get_value_args(tp: typing.Any) -> typing.Sequence[typing.Any]:

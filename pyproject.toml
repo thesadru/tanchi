@@ -20,6 +20,7 @@ include = ["tanchi"]
 [tool.mypy]
 strict = true
 warn_unreachable = true
+warn_return_any = false
 
 # for pyright
 warn_unused_ignores = false
