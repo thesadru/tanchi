@@ -49,6 +49,11 @@ def signature(
     return signature.replace(parameters=params, return_annotation=return_annotation)
 
 
+class SpecialType(type):
+    def __new__(cls, *args: typing.Any, **kwargs: typing.Any) -> typing.Any:
+        return super().__new__(cls, cls.__name__, (), {})
+
+
 class RangeMeta(type):
     # sometimes Range[1, 10] may be interpreted as Literal[1, 10] and we don't want that
     @typing.overload
@@ -75,7 +80,7 @@ class RangeMeta(type):
         return typing.cast("type[RangeValueT]", r)
 
 
-class Range(metaclass=RangeMeta):
+class Range(SpecialType, metaclass=RangeMeta):
     min_value: typing.Optional[RangeValue]
     max_value: typing.Optional[RangeValue]
     underlying_type: typing.Optional[typing.Type[RangeValue]]
@@ -102,7 +107,7 @@ class ConvertedMeta(type):
         self,
         args: typing.Union[
             MaybeSequence[typing.Callable[..., MaybeAwaitable[T]]],
-            typing.Tuple[T, MaybeSequence[typing.Callable[..., MaybeAwaitable[T]]]],
+            typing.Tuple[typing.Type[T], MaybeSequence[typing.Callable[..., MaybeAwaitable[T]]]],
         ],
     ) -> typing.Type[T]:
         converters = args[1] if isinstance(args, tuple) else args
@@ -112,7 +117,7 @@ class ConvertedMeta(type):
         return typing.cast("type[T]", Converted(*converters))
 
 
-class Converted(metaclass=ConvertedMeta):
+class Converted(SpecialType, metaclass=ConvertedMeta):
     converters: typing.Sequence[tanjun.commands.slash.ConverterSig]
 
     def __init__(self, *converters: tanjun.commands.slash.ConverterSig) -> None:
@@ -148,7 +153,7 @@ class AutocompletedMeta(type):
         return typing.cast("type[typing.Any]", Autocompleted(autocomplete, *converters))
 
 
-class Autocompleted(metaclass=AutocompletedMeta):
+class Autocompleted(SpecialType, metaclass=AutocompletedMeta):
     autocomplete: tanjun.abc.AutocompleteCallbackSig
     converters: typing.Sequence[tanjun.commands.slash.ConverterSig]
 
