@@ -32,6 +32,7 @@ else:
     _UnionTypes = {typing.Union}
     _NoneTypes = {None, type(None)}
 
+_UndefinedTypes = {hikari.UNDEFINED, hikari.UndefinedType, typing.Literal[hikari.UNDEFINED]}
 _AnnotatedAlias = type(typing.Annotated[object, object])
 
 _builtin_type_mapping: typing.Mapping[type, hikari.OptionType] = {
@@ -58,9 +59,9 @@ def issubclass_(obj: typing.Any, tp: S) -> TypeGuard[S]:
     return isinstance(obj, type) and issubclass(obj, tp)
 
 
-def _get_value_args(tp: typing.Any) -> typing.Sequence[typing.Any]:
+def _get_value_args(tp: typing.Any, exclude: typing.Collection[typing.Any] = _NoneTypes) -> typing.Sequence[typing.Any]:
     """Get all args that are not None"""
-    return [x for x in typing.get_args(tp) if x not in _NoneTypes]
+    return [x for x in typing.get_args(tp) if x not in exclude]
 
 
 def support_union(func: typing.Callable[[typing.Any], TryReturnT]) -> typing.Callable[[typing.Any], TryReturnT]:
@@ -84,12 +85,12 @@ def support_union(func: typing.Callable[[typing.Any], TryReturnT]) -> typing.Cal
     return wrapper
 
 
-def _strip_optional(tp: typing.Any) -> typing.Any:
+def _strip_optional(tp: typing.Any, exclude: typing.Collection[typing.Any] = _NoneTypes) -> typing.Any:
     """Remove all None from a union"""
     if typing.get_origin(tp) not in _UnionTypes:
         return tp
 
-    args = [x for x in typing.get_args(tp) if x not in _NoneTypes]
+    args = _get_value_args(tp, exclude=exclude)
     if len(args) == 1:
         return args[0]
 
@@ -147,7 +148,7 @@ def parse_parameter(
     if isinstance(annotation, alluka._types.InjectedTypes):
         return
 
-    annotation = _strip_optional(annotation)
+    annotation = _strip_optional(annotation, exclude=_NoneTypes | _UndefinedTypes | {typing.Literal[default]})  # type: ignore
     description = description or "-"
 
     if default is inspect.Parameter.empty:
