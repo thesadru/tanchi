@@ -110,7 +110,7 @@ class ConvertedMeta(type):
             typing.Tuple[typing.Type[T], MaybeSequence[typing.Callable[..., MaybeAwaitable[T]]]],
         ],
     ) -> typing.Type[T]:
-        converters = args[1] if isinstance(args, tuple) else args
+        converters = args[1] if isinstance(args, tuple) and len(args) == 2 else args
         if not isinstance(converters, typing.Sequence):
             converters = (converters,)
 

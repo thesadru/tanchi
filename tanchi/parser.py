@@ -123,6 +123,10 @@ def _try_channel_option(tp: typing.Any) -> typing.Optional[typing.Sequence[typin
 @support_union
 def _try_convertered_option(tp: typing.Any) -> typing.Optional[typing.Sequence[tanjun.commands.slash.ConverterSig]]:
     """Try parsing an annotation into all the converters it would need"""
+    if tp == str:
+        # valid converter if used as a fallback
+        return [str]
+
     if isinstance(tp, types.Converted):
         return tp.converters
 
