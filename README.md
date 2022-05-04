@@ -143,3 +143,19 @@ Args:
     bar: Description for the option named "bar"
 """
 ```
+
+## Autocompletion Examples
+
+Instead of using `context.set_choices` you can choose to return options as either a sequence or a mapping.
+
+```py
+@tanchi.as_slash_command()
+async def command(context: tanjun.abc.SlashContext, option: str) -> None:
+    ...
+
+@tanchi.with_autocomplete(command, "option")
+def autocomplete_names(context: tanjun.abc.AutocompleteContext, option: str):
+    return [word for word in WORDS if option.lower() in word.lower()]
+```
+
+Returning the options is also supported inside [`Autocompleted`](#autocomplete)

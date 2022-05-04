@@ -1,6 +1,6 @@
 name: Run checks
 
-on: push
+on: [push, pull_request]
 
 jobs:
   lint:
@@ -26,10 +26,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ["3.9", "3.10"]
 
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v2

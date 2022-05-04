@@ -1,4 +1,5 @@
 import enum
+import functools
 import typing
 from unittest import mock
 
@@ -189,14 +190,14 @@ def test_parse_parameter_with_annotated_class():
 
     parse_parameter(command, types.Autocompleted[autocomplete])
     assert command._builder.options[0].type == hikari.OptionType.STRING
-    assert command._str_autocompletes["option"] == autocomplete
+    assert command._str_autocompletes["option"].__wrapped__ == autocomplete
     assert not command._tracked_options["option"].converters
 
     command = SlashCommand()
 
     parse_parameter(command, types.Autocompleted[autocomplete, int])
     assert command._builder.options[0].type == hikari.OptionType.STRING
-    assert command._str_autocompletes["option"] == autocomplete
+    assert command._str_autocompletes["option"].__wrapped__ == autocomplete
     assert command._tracked_options["option"].converters == [int]
 
 

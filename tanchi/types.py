@@ -7,12 +7,18 @@ import typing
 import hikari
 import tanjun
 
-__all__ = ["Range", "Converted", "Mentionable", "Autocompleted"]
+from . import autocompletion
+
+__all__ = ["Autocompleted", "Converted", "Mentionable", "Range"]
 
 T = typing.TypeVar("T")
 MaybeAwaitable = typing.Union[typing.Coroutine[typing.Any, typing.Any, T], T]
 MaybeSequence = typing.Union[typing.Sequence[T], T]
 CommandCallbackSigT = typing.TypeVar("CommandCallbackSigT", bound=tanjun.abc.CommandCallbackSig)
+
+
+ChoiceValue = typing.Union[str, int, float]
+Choices = typing.Union[typing.Sequence[ChoiceValue], typing.Mapping[str, ChoiceValue]]
 
 RangeValue = typing.Union[int, float]
 RangeValueT = typing.TypeVar("RangeValueT", bound=RangeValue)
@@ -162,5 +168,5 @@ class Autocompleted(SpecialType, metaclass=AutocompletedMeta):
         autocomplete: tanjun.abc.AutocompleteCallbackSig,
         *converters: tanjun.commands.slash.ConverterSig,
     ) -> None:
-        self.autocomplete = autocomplete  # type: ignore[assignment]
+        self.autocomplete = autocompletion.as_autocomplete(autocomplete)  # type: ignore[assignment]
         self.converters = converters

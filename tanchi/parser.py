@@ -19,7 +19,7 @@ if typing.TYPE_CHECKING:
     S = typing.TypeVar("S", bound=typing.Type[typing.Any])
 
 
-__all__ = ["parse_parameter", "parse_docstring", "create_command"]
+__all__ = ["create_command", "parse_docstring", "parse_parameter"]
 
 
 if sys.version_info >= (3, 10):

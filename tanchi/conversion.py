@@ -8,7 +8,7 @@ import typing
 import hikari
 import tanjun
 
-__all__ = ["get_converters", "ToUnknownCustomEmoji", "ToUnicodeEmoji", "ToAnyEmoji"]
+__all__ = ["ToAnyEmoji", "ToUnicodeEmoji", "ToUnknownCustomEmoji", "get_converters"]
 
 T = typing.TypeVar("T")
 

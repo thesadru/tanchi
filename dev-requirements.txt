@@ -6,5 +6,6 @@ isort
 
 typing_extensions
 pytest
+pytest-asyncio
 mypy
 pyright
