@@ -135,21 +135,21 @@ class Converted(SpecialType, metaclass=ConvertedMeta):
 
 class AutocompletedMeta(type):
     @typing.overload
-    def __getitem__(self, args: tanjun.abc.AutocompleteCallbackSig) -> typing.Type[str]:
+    def __getitem__(self, args: autocompletion.AutocompleteSig) -> typing.Type[str]:
         ...
 
     @typing.overload
     def __getitem__(
         self,
-        args: typing.Tuple[tanjun.abc.AutocompleteCallbackSig, MaybeSequence[typing.Callable[..., MaybeAwaitable[T]]]],
+        args: typing.Tuple[autocompletion.AutocompleteSig, MaybeSequence[typing.Callable[..., MaybeAwaitable[T]]]],
     ) -> typing.Type[T]:
         ...
 
     def __getitem__(
         self,
         args: typing.Union[
-            tanjun.abc.AutocompleteCallbackSig,
-            typing.Tuple[tanjun.abc.AutocompleteCallbackSig, MaybeSequence[tanjun.commands.slash.ConverterSig]],
+            autocompletion.AutocompleteSig,
+            typing.Tuple[autocompletion.AutocompleteSig, MaybeSequence[tanjun.commands.slash.ConverterSig]],
         ],
     ) -> typing.Type[typing.Any]:
         autocomplete, converters = args if isinstance(args, tuple) else (args, ())
@@ -165,7 +165,7 @@ class Autocompleted(SpecialType, metaclass=AutocompletedMeta):
 
     def __init__(
         self,
-        autocomplete: tanjun.abc.AutocompleteCallbackSig,
+        autocomplete: autocompletion.AutocompleteSig,
         *converters: tanjun.commands.slash.ConverterSig,
     ) -> None:
         self.autocomplete = autocompletion.as_autocomplete(autocomplete)  # type: ignore[assignment]
