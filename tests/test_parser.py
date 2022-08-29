@@ -10,24 +10,11 @@ import tanjun
 from tanchi import conversion, parser, types
 
 
-class SlashCommand(tanjun.SlashCommand[typing.Any]):
-    def __init__(self) -> None:
-        super().__init__(lambda ctx, **kwargs: None, "name", "description")
+def parse_parameter(annotation: typing.Any, *, name: str = "option") -> parser.Option:
+    option = parser.parse_parameter(name=name, annotation=annotation)
+    assert option is not None
 
-
-def parse_parameter(
-    command: tanjun.SlashCommand[typing.Any],
-    annotation: typing.Any,
-    *,
-    name: str = "option",
-    default: typing.Any = types.UNDEFINED_DEFAULT,
-) -> None:
-    parser.parse_parameter(
-        command,
-        name=name,
-        annotation=annotation,
-        default=default,
-    )
+    return option
 
 
 def test_strip_optional():
@@ -70,14 +57,14 @@ def test_try_enum_option_with_misc():
 
 def test_try_channel_option_with_single():
     x = hikari.GuildTextChannel
-    assert parser._try_channel_option(x) == [x]
+    assert parser._try_channel_option(x) == [hikari.ChannelType.GUILD_TEXT]
 
 
 def test_try_channel_option_with_union():
     x = typing.Union[hikari.GuildTextChannel, hikari.GuildVoiceChannel, None]
     assert parser._try_channel_option(x) == [
-        hikari.GuildTextChannel,
-        hikari.GuildVoiceChannel,
+        hikari.ChannelType.GUILD_TEXT,
+        hikari.ChannelType.GUILD_VOICE,
     ]
 
 
@@ -104,105 +91,83 @@ def test_try_convertered_option_with_union():
 
 
 def test_parse_parameter_with_int():
-    command = SlashCommand()
+    option = parse_parameter(int)
 
-    parse_parameter(command, int)
-
-    option = command._builder.options[0]
-    assert option.type == hikari.OptionType.INTEGER
+    assert option.option_type == hikari.OptionType.INTEGER
     assert option.min_value is None and option.max_value is None
 
 
 def test_parse_parameter_with_string_choices():
-    command = SlashCommand()
+    option = parse_parameter(typing.Literal["A", "B", "C"])
 
-    parse_parameter(command, typing.Literal["A", "B", "C"])
-
-    option = command._builder.options[0]
-    assert option.type == hikari.OptionType.STRING
-    assert option.choices == [hikari.CommandChoice(name=value, value=value) for value in ("A", "B", "C")]
+    assert option.option_type == hikari.OptionType.STRING
+    assert option.choices == {v: v for v in ("A", "B", "C")}
 
 
 def test_parse_parameter_with_user():
-    command = SlashCommand()
+    option = parse_parameter(hikari.User)
 
-    parse_parameter(command, hikari.User, name="user")
-    parse_parameter(command, hikari.InteractionMember, name="member")
+    assert option.option_type == hikari.OptionType.USER
+    assert not option.only_member
 
-    assert command._builder.options[0].type == hikari.OptionType.USER
-    assert command._builder.options[1].type == hikari.OptionType.USER
-    assert not command._tracked_options["user"].is_only_member
-    assert command._tracked_options["member"].is_only_member
+    option = parse_parameter(hikari.InteractionMember)
+
+    assert option.option_type == hikari.OptionType.USER
+    assert option.only_member
 
 
 def test_parse_parameter_with_channel():
-    command = SlashCommand()
+    option = parse_parameter(typing.Union[hikari.GuildVoiceChannel, hikari.GuildStageChannel])
 
-    parse_parameter(command, typing.Union[hikari.GuildVoiceChannel, hikari.GuildStageChannel])
-
-    option = command._builder.options[0]
-    assert option.type == hikari.OptionType.CHANNEL
+    assert option.option_type == hikari.OptionType.CHANNEL
     assert option.channel_types == [hikari.ChannelType.GUILD_VOICE, hikari.ChannelType.GUILD_STAGE]
 
 
 def test_parse_parameter_with_range():
-    command = SlashCommand()
+    option = parse_parameter(types.Range(1, 2))
 
-    parse_parameter(command, types.Range(1, 2))
-    option = command._builder.options[0]
-    assert option.type == hikari.OptionType.INTEGER
+    assert option.option_type == hikari.OptionType.INTEGER
     assert option.min_value == 1 and option.max_value == 2
 
-    command = SlashCommand()
+    option = parse_parameter(types.Range[0.0, ...])
 
-    parse_parameter(command, types.Range[0.0, ...])
-    option = command._builder.options[0]
-    assert option.type == hikari.OptionType.FLOAT
+    assert option.option_type == hikari.OptionType.FLOAT
     assert option.min_value == 0 and option.max_value is None
 
 
 def test_parse_parameter_with_converter():
-    command = SlashCommand()
-
-    parse_parameter(command, hikari.KnownCustomEmoji, name="emoji")
-    assert command._builder.options[0].type == hikari.OptionType.STRING
-    assert command._tracked_options["emoji"].converters[0].__class__ is tanjun.conversion.ToEmoji
+    option = parse_parameter(hikari.KnownCustomEmoji, name="emoji")
+    assert option.option_type == hikari.OptionType.STRING
+    assert option.converters[0].__class__ is tanjun.conversion.ToEmoji
 
 
 def test_parse_parameter_with_converter_class():
-    command = SlashCommand()
+    option = parse_parameter(types.Converted[int], name="bigint")
 
-    parse_parameter(command, types.Converted[int], name="bigint")
-    assert command._builder.options[0].type == hikari.OptionType.STRING
-    assert command._tracked_options["bigint"].converters == [int]
+    assert option.option_type == hikari.OptionType.STRING
+    assert option.converters == (int,)
 
-    command = SlashCommand()
+    option = parse_parameter(types.Converted[int, round], name="bigint")
 
-    parse_parameter(command, types.Converted[int, round], name="bigint")
-    assert command._builder.options[0].type == hikari.OptionType.STRING
-    assert command._tracked_options["bigint"].converters == [round]
+    assert option.option_type == hikari.OptionType.STRING
+    assert option.converters == (round,)
 
 
 def test_parse_parameter_with_annotated_class():
-    command = SlashCommand()
-
     autocomplete = mock.Mock()
 
-    parse_parameter(command, types.Autocompleted[autocomplete])
-    assert command._builder.options[0].type == hikari.OptionType.STRING
-    assert command._str_autocompletes["option"].__wrapped__ == autocomplete
-    assert not command._tracked_options["option"].converters
+    option = parse_parameter(types.Autocompleted[autocomplete])
+    assert option.option_type == hikari.OptionType.STRING
+    assert option.autocomplete and option.autocomplete.__wrapped__ == autocomplete
+    assert not option.converters
 
-    command = SlashCommand()
-
-    parse_parameter(command, types.Autocompleted[autocomplete, int])
-    assert command._builder.options[0].type == hikari.OptionType.STRING
-    assert command._str_autocompletes["option"].__wrapped__ == autocomplete
-    assert command._tracked_options["option"].converters == [int]
+    option = parse_parameter(types.Autocompleted[autocomplete, int])
+    assert option.option_type == hikari.OptionType.STRING
+    assert option.autocomplete and option.autocomplete.__wrapped__ == autocomplete
+    assert not option.converters == [int]
 
 
 def test_parse_parameter_with_misc():
-    command = SlashCommand()
 
     with pytest.raises(TypeError):
-        parse_parameter(command, annotation=object())
+        option = parse_parameter(annotation=object())

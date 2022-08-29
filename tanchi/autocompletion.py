@@ -34,30 +34,37 @@ def as_autocomplete(callback: AutocompleteSig) -> tanjun.abc.AutocompleteCallbac
     return wrapper
 
 
+def add_autocomplete(
+    command: tanjun.SlashCommand[typing.Any],
+    /,
+    name: str,
+    callback: tanjun.abc.AutocompleteCallbackSig,
+) -> None:
+    """Add an arbitrary autocomplete to a command."""
+    option = command._builder.get_option(name)
+    if not option:
+        raise KeyError("Option not found")
+
+    if option.type == hikari.OptionType.STRING:
+        command.set_str_autocomplete(name, callback)
+    elif option.type == hikari.OptionType.INTEGER:
+        command.set_int_autocomplete(name, callback)
+    elif option.type == hikari.OptionType.FLOAT:
+        command.set_float_autocomplete(name, callback)
+    else:
+        raise ValueError("Unsupported option type")
+
+
 def with_autocomplete(
     command: tanjun.SlashCommand[typing.Any],
     /,
     name: str,
 ) -> typing.Callable[[AutocompleteSig], tanjun.abc.AutocompleteCallbackSig]:
     """Decorator to add an arbitrary autocomplete to a command."""
-    option = command._builder.get_option(name)
-    if not option:
-        raise KeyError("Option not found")
-
-    tp = option.type
 
     def wrapper(callback: AutocompleteSig) -> tanjun.abc.AutocompleteCallbackSig:
         autocompleter = as_autocomplete(callback)
-
-        if tp == hikari.OptionType.STRING:
-            command.set_str_autocomplete(name, autocompleter)
-        elif tp == hikari.OptionType.INTEGER:
-            command.set_int_autocomplete(name, autocompleter)
-        elif tp == hikari.OptionType.FLOAT:
-            command.set_float_autocomplete(name, autocompleter)
-        else:
-            raise ValueError("Unsupported option type")
-
+        add_autocomplete(command, name=name, callback=autocompleter)
         return autocompleter
 
     return wrapper

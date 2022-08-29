@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dataclasses
 import inspect
 import re
 import sys
@@ -8,6 +9,8 @@ import typing
 import alluka
 import hikari
 import tanjun
+
+from tanchi import autocompletion
 
 from . import conversion, types
 
@@ -49,6 +52,50 @@ _hikari_type_mapping: typing.Mapping[typing.Any, hikari.OptionType] = {
     hikari.Attachment: hikari.OptionType.ATTACHMENT,
 }
 """Generic discord types with hikari equivalents"""
+
+
+@dataclasses.dataclass
+class Option:
+    """An extended tanjun option.
+
+    Combines hikari.CommandOption and tanjun._TrackedOption.
+    """
+
+    name: str
+    description: str
+    option_type: typing.Union[hikari.OptionType, int]
+    always_float: bool = False
+    autocomplete: typing.Optional[tanjun.abc.AutocompleteCallbackSig] = None
+    channel_types: typing.Optional[typing.Sequence[int]] = None
+    choices: typing.Optional[typing.Mapping[str, typing.Union[str, int, float]]] = None
+    converters: typing.Sequence[tanjun.commands.slash.ConverterSig] = ()
+    default: typing.Any = types.UNDEFINED_DEFAULT
+    key: typing.Optional[str] = None
+    min_value: typing.Union[int, float, None] = None
+    max_value: typing.Union[int, float, None] = None
+    only_member: bool = False
+    pass_as_kwarg: bool = True
+
+    def add_to_command(self, command: tanjun.SlashCommand[typing.Any]) -> None:
+        if self.autocomplete:
+            autocompletion.add_autocomplete(command, name=self.name, callback=self.autocomplete)
+
+        command._add_option(
+            self.name,
+            self.description,
+            self.option_type,
+            always_float=self.always_float,
+            autocomplete=self.autocomplete is not None,
+            channel_types=self.channel_types and list(set(self.channel_types)),
+            choices=self.choices,
+            converters=self.converters,
+            default=self.default,
+            key=self.key,
+            min_value=self.min_value,
+            max_value=self.max_value,
+            only_member=self.only_member,
+            pass_as_kwarg=self.pass_as_kwarg,
+        )
 
 
 def issubclass_(obj: typing.Any, tp: S) -> TypeGuard[S]:
@@ -112,10 +159,11 @@ def _try_enum_option(tp: typing.Any) -> typing.Optional[typing.Mapping[str, typi
 
 
 @support_union
-def _try_channel_option(tp: typing.Any) -> typing.Optional[typing.Sequence[typing.Type[hikari.PartialChannel]]]:
+def _try_channel_option(tp: typing.Any) -> typing.Optional[typing.Sequence[int]]:
     """Try parsing an annotation into channel types"""
     if issubclass_(tp, hikari.PartialChannel):
-        return [tp]
+        channel_type = tanjun.commands.slash._CHANNEL_TYPES[tp]
+        return list(channel_type)
 
     return None
 
@@ -138,19 +186,20 @@ def _try_convertered_option(tp: typing.Any) -> typing.Optional[typing.Sequence[t
 
 
 def parse_parameter(
-    command: tanjun.SlashCommand[typing.Any],
     name: str,
     annotation: typing.Any,
     default: typing.Any = types.UNDEFINED_DEFAULT,
     description: typing.Optional[str] = None,
-) -> None:
+) -> typing.Optional[Option]:
     """Parse a parameter in a command signature."""
     if isinstance(annotation, _AnnotatedAlias):
         # should we really only care about the first one?
         annotation = typing.get_args(annotation)[1]
 
+    if isinstance(default, alluka._types.InjectedDescriptor):
+        return None
     if isinstance(annotation, alluka._types.InjectedTypes):
-        return
+        return None
 
     annotation = _strip_optional(annotation, exclude=_NoneTypes | _UndefinedTypes | {typing.Literal[default]})  # type: ignore
     description = description or "-"
@@ -172,7 +221,7 @@ def parse_parameter(
         annotation = annotation.underlying_type
 
     if option_type := _builtin_type_mapping.get(annotation):
-        command._add_option(
+        return Option(
             name,
             description,
             option_type,
@@ -181,41 +230,35 @@ def parse_parameter(
             min_value=min_value,
             max_value=max_value,
         )
-        return
 
     for tp, option_tp in _hikari_type_mapping.items():
         if issubclass_(annotation, tp):
-            command._add_option(
+            return Option(
                 name,
                 description,
                 option_tp,
                 default=default,
             )
-            return
 
-    if issubclass_(annotation, hikari.Member):
-        command.add_member_option(name, description, default=default)
-        return
-    elif issubclass_(annotation, hikari.PartialUser):
-        command.add_user_option(name, description, default=default)
-        return
+    if issubclass_(annotation, hikari.PartialUser):
+        only_member = issubclass_(annotation, hikari.Member)
+        return Option(name, description, hikari.OptionType.USER, default=default, only_member=only_member)
 
     if channel_types := _try_channel_option(annotation):
-        command.add_channel_option(name, description, default=default, types=channel_types)
-        return
+        return Option(name, description, hikari.OptionType.CHANNEL, default=default, channel_types=channel_types)
 
     if converters := _try_convertered_option(annotation):
-        command.add_str_option(name, description, default=default, converters=converters)
-        return
+        return Option(name, description, hikari.OptionType.STRING, default=default, converters=converters)
 
     if isinstance(annotation, types.Autocompleted):
-        command.add_str_option(
+        return Option(
             name,
             description,
+            hikari.OptionType.STRING,
+            default=default,
             autocomplete=annotation.autocomplete,
             converters=annotation.converters,
         )
-        return
 
     raise TypeError(f"Unknown slash command option type: {annotation!r}")
 
@@ -286,15 +329,13 @@ def create_command(
             raise TypeError("First argument in a slash command must be the context.")
 
     for parameter in parameters:
-        if isinstance(parameter.default, alluka._types.InjectedDescriptor):
-            continue
-
-        parse_parameter(
-            command,
+        option = parse_parameter(
             name=parameter.name,
             description=parameter_descriptions.get(parameter.name, "-"),
             annotation=parameter.annotation,
             default=parameter.default,
         )
+        if option:
+            option.add_to_command(command)
 
     return command
