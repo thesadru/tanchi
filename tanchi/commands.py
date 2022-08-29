@@ -25,8 +25,11 @@ def as_slash_command(
         func,
         name=name,
         always_defer=always_defer,
+        default_member_permissions=default_member_permissions,
         default_to_ephemeral=default_to_ephemeral,
+        dm_enabled=dm_enabled,
         is_global=is_global,
         sort_options=sort_options,
+        validate_arg_keys=validate_arg_keys,
         **kwargs,
     )
