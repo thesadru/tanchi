@@ -1,3 +1,3 @@
-hikari>=2.0.0.dev108
-hikari-tanjun>=2.4.4a1
-alluka
+hikari>=2.0.0.dev110
+hikari-tanjun>=2.6.1a1
+alluka~=0.1

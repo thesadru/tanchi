@@ -12,7 +12,7 @@ from tanchi import conversion, parser, types
 
 class SlashCommand(tanjun.SlashCommand[typing.Any]):
     def __init__(self) -> None:
-        super().__init__(NotImplemented, "name", "description")
+        super().__init__(lambda ctx, **kwargs: None, "name", "description")
 
 
 def parse_parameter(
