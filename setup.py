@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name="hikari-tanchi",
-    version="1.3.5",
+    version="1.3.6",
     description="A signature parser for hikari's command handler tanjun.",
     url="https://github.com/thesadru/tanchi",
     long_description=open("README.md", encoding="utf-8").read(),

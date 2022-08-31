@@ -77,9 +77,6 @@ class Option:
     pass_as_kwarg: bool = True
 
     def add_to_command(self, command: tanjun.SlashCommand[typing.Any]) -> None:
-        if self.autocomplete:
-            autocompletion.add_autocomplete(command, name=self.name, callback=self.autocomplete)
-
         command._add_option(
             self.name,
             self.description,
@@ -96,6 +93,9 @@ class Option:
             only_member=self.only_member,
             pass_as_kwarg=self.pass_as_kwarg,
         )
+
+        if self.autocomplete:
+            autocompletion.add_autocomplete(command, name=self.name, callback=self.autocomplete)
 
 
 def issubclass_(obj: typing.Any, tp: S) -> TypeGuard[S]:
